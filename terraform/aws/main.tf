@@ -1,3 +1,4 @@
+
 # AWS infrastructure for the first deployment phase.
 # Includes only VPC, EKS, and ECR; the application does not require a database.
 
@@ -21,10 +22,17 @@ module "kubernetes" {
   subnet_ids       = module.network.public_subnet_ids
 }
 
-# Create ECR Repository
-module "container_registry" {
+# Create separate ECR repositories for each application image.
+module "backend_registry" {
   source               = "../modules/container-registry"
-  registry_name        = var.registry_name
+  registry_name        = "${var.registry_name}/backend"
+  scan_on_push         = true
+  image_tag_mutability = "MUTABLE"
+}
+
+module "frontend_registry" {
+  source               = "../modules/container-registry"
+  registry_name        = "${var.registry_name}/frontend"
   scan_on_push         = true
   image_tag_mutability = "MUTABLE"
 }

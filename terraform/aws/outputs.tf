@@ -8,5 +8,9 @@ output "eks_cluster_endpoint" {
 }
 
 output "ecr_repository_url" {
-  value = module.container_registry.repository_url
+  value = module.backend_registry.repository_url
+}
+
+output "frontend_ecr_repository_url" {
+  value = module.frontend_registry.repository_url
 }
