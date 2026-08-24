@@ -1,1 +1,10 @@
-# Application ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: ecommerce
+data:
+  LOG_LEVEL: "INFO"
+  CORS_ORIGINS: "*"
+  CACHE_TTL: "300"
+  ENABLE_CACHING: "true"

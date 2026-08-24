@@ -1,1 +1,145 @@
-// Jenkins CI/CD pipeline
+pipeline {
+    agent any
+
+    environment {
+        REGISTRY = credentials('docker-registry')
+        AWS_CREDENTIALS = credentials('aws-credentials')
+        GIT_COMMIT_SHORT = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
+        IMAGE_TAG = "${BUILD_NUMBER}-${GIT_COMMIT_SHORT}"
+        BACKEND_IMAGE = "ecommerce/backend:${IMAGE_TAG}"
+        FRONTEND_IMAGE = "ecommerce/frontend:${IMAGE_TAG}"
+    }
+
+    parameters {
+        choice(name: 'DEPLOY_ENV', choices: ['staging', 'production'], description: 'Deployment environment')
+        booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Skip running tests')
+        booleanParam(name: 'DEPLOY_TO_AWS', defaultValue: true, description: 'Deploy to AWS')
+        booleanParam(name: 'DEPLOY_TO_AZURE', defaultValue: false, description: 'Deploy to Azure')
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+                sh 'git log --oneline -1'
+            }
+        }
+
+        stage('Build Backend') {
+            steps {
+                dir('backend') {
+                    sh '''
+                        echo "Building backend image..."
+                        docker build -t ${BACKEND_IMAGE} -f Dockerfile .
+                    '''
+                }
+            }
+        }
+
+        stage('Build Frontend') {
+            steps {
+                dir('frontend') {
+                    sh '''
+                        echo "Building frontend image..."
+                        docker build -t ${FRONTEND_IMAGE} -f Dockerfile .
+                    '''
+                }
+            }
+        }
+
+        stage('Test') {
+            when {
+                expression { !params.SKIP_TESTS }
+            }
+            parallel {
+                stage('Backend Tests') {
+                    steps {
+                        dir('backend') {
+                            sh '''
+                                python -m pip install -r requirements.txt
+                                python -m pytest tests/ -v --cov=app --cov-report=xml
+                            '''
+                        }
+                    }
+                }
+                stage('Security Scan') {
+                    steps {
+                        sh '''
+                            echo "Running security scans..."
+                            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image ${BACKEND_IMAGE}
+                            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image ${FRONTEND_IMAGE}
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Push to Registry') {
+            steps {
+                sh '''
+                    echo "Pushing images to registry..."
+                    docker tag ${BACKEND_IMAGE} ${REGISTRY}/backend:latest
+                    docker tag ${FRONTEND_IMAGE} ${REGISTRY}/frontend:latest
+                    docker push ${REGISTRY}/backend:${IMAGE_TAG}
+                    docker push ${REGISTRY}/frontend:${IMAGE_TAG}
+                '''
+            }
+        }
+
+        stage('Deploy to AWS') {
+            when {
+                expression { params.DEPLOY_TO_AWS }
+            }
+            steps {
+                sh '''
+                    echo "Deploying to AWS ${DEPLOY_ENV}..."
+                    ./scripts/deploy-aws.sh ${DEPLOY_ENV} ${IMAGE_TAG}
+                '''
+            }
+        }
+
+        stage('Deploy to Azure') {
+            when {
+                expression { params.DEPLOY_TO_AZURE }
+            }
+            steps {
+                sh '''
+                    echo "Deploying to Azure ${DEPLOY_ENV}..."
+                    ./scripts/deploy-azure.sh ${DEPLOY_ENV} ${IMAGE_TAG}
+                '''
+            }
+        }
+
+        stage('Smoke Tests') {
+            steps {
+                sh '''
+                    echo "Running smoke tests..."
+                    sleep 30
+                    curl -f http://localhost:3000/ || exit 1
+                    curl -f http://localhost:8000/health || exit 1
+                '''
+            }
+        }
+
+        stage('Notify') {
+            when {
+                success()
+            }
+            steps {
+                echo "Deployment successful!"
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+        failure {
+            echo "Pipeline failed!"
+        }
+        success {
+            echo "Pipeline completed successfully!"
+        }
+    }
+}
