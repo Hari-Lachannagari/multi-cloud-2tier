@@ -1,1 +1,6 @@
-# Azure Terraform variables example
+azure_region         = "East US"
+resource_group_name  = "ecommerce-rg"
+environment          = "production"
+cluster_name         = "ecommerce-aks"
+node_count           = 2
+node_vm_size         = "Standard_D2s_v5"

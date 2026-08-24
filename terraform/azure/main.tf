@@ -1,10 +1,5 @@
-# Azure Infrastructure for Multi-Cloud E-Commerce Application
-# Includes: AKS, ACR, PostgreSQL, Application Gateway
+# Azure infrastructure for the multi-cloud e-commerce application.
 
-# Data source for current Azure context
-data "azurerm_client_config" "current" {}
-
-# Create Resource Group
 resource "azurerm_resource_group" "main" {
   name     = var.resource_group_name
   location = var.azure_region
@@ -35,21 +30,11 @@ resource "azurerm_subnet" "aks" {
   address_prefixes     = ["10.0.1.0/24"]
 }
 
-resource "azurerm_subnet" "db" {
-  name                 = "db-subnet"
+resource "azurerm_subnet" "app_gateway" {
+  name                 = "app-gateway-subnet"
   resource_group_name  = azurerm_resource_group.main.name
   virtual_network_name = azurerm_virtual_network.main.name
-  address_prefixes     = ["10.0.2.0/24"]
-
-  delegation {
-    name = "fs"
-    service_delegation {
-      name = "Microsoft.DBforPostgreSQL/flexibleServers"
-      actions = [
-        "Microsoft.Network/virtualNetworks/subnets/join/action",
-      ]
-    }
-  }
+  address_prefixes     = ["10.0.3.0/24"]
 }
 
 # Create AKS Cluster
@@ -99,51 +84,10 @@ resource "azurerm_container_registry" "main" {
   }
 }
 
-# Attach ACR to AKS
 resource "azurerm_role_assignment" "aks_acr" {
-  scope              = azurerm_container_registry.main.id
+  scope                = azurerm_container_registry.main.id
   role_definition_name = "AcrPull"
-  principal_id       = azurerm_kubernetes_cluster.main.kubelet_identity[0].object_id
-}
-
-# Create PostgreSQL Flexible Server
-resource "azurerm_postgresql_flexible_server" "main" {
-  name                   = "ecommerce-db"
-  location               = azurerm_resource_group.main.location
-  resource_group_name    = azurerm_resource_group.main.name
-  version                = "15"
-  delegated_subnet_id    = azurerm_subnet.db.id
-  administrator_login    = "ecommerce"
-  administrator_password = random_password.db_password.result
-
-  backup_retention_days  = 7
-  geo_redundant_backup_enabled = true
-  zone                   = 1
-
-  tags = {
-    Environment = var.environment
-  }
-}
-
-# PostgreSQL Flexible Server Configuration
-resource "azurerm_postgresql_flexible_server_configuration" "main" {
-  name       = "require_secure_transfer"
-  server_id  = azurerm_postgresql_flexible_server.main.id
-  value      = "on"
-}
-
-# Create Database
-resource "azurerm_postgresql_flexible_server_database" "ecommerce" {
-  name       = "ecommerce_db"
-  server_id  = azurerm_postgresql_flexible_server.main.id
-  charset    = "UTF8"
-  collation  = "en_US.utf8"
-}
-
-# Generate random password for database
-resource "random_password" "db_password" {
-  length  = 16
-  special = true
+  principal_id         = azurerm_kubernetes_cluster.main.kubelet_identity[0].object_id
 }
 
 # Create Application Gateway
@@ -167,8 +111,8 @@ resource "azurerm_application_gateway" "main" {
   }
 
   gateway_ip_configuration {
-    name          = "gateway-ip-config"
-    subnet_id     = azurerm_subnet.aks.id
+    name      = "gateway-ip-config"
+    subnet_id = azurerm_subnet.app_gateway.id
   }
 
   frontend_port {

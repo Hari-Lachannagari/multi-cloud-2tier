@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: registry.azurecr.io/ecommerce/frontend:latest
+        image: REPLACE_REGISTRY/frontend:latest
         imagePullPolicy: IfNotPresent
         ports:
         - name: http

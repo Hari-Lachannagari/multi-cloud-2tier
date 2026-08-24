@@ -14,7 +14,7 @@ pipeline {
         choice(name: 'DEPLOY_ENV', choices: ['staging', 'production'], description: 'Deployment environment')
         booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Skip running tests')
         booleanParam(name: 'DEPLOY_TO_AWS', defaultValue: true, description: 'Deploy to AWS')
-        booleanParam(name: 'DEPLOY_TO_AZURE', defaultValue: false, description: 'Deploy to Azure')
+        // booleanParam(name: 'DEPLOY_TO_AZURE', defaultValue: false, description: 'Deploy to Azure')
     }
 
     stages {
@@ -78,10 +78,14 @@ pipeline {
             steps {
                 sh '''
                     echo "Pushing images to registry..."
+                    docker tag ${BACKEND_IMAGE} ${REGISTRY}/backend:${IMAGE_TAG}
+                    docker tag ${FRONTEND_IMAGE} ${REGISTRY}/frontend:${IMAGE_TAG}
                     docker tag ${BACKEND_IMAGE} ${REGISTRY}/backend:latest
                     docker tag ${FRONTEND_IMAGE} ${REGISTRY}/frontend:latest
                     docker push ${REGISTRY}/backend:${IMAGE_TAG}
                     docker push ${REGISTRY}/frontend:${IMAGE_TAG}
+                    docker push ${REGISTRY}/backend:latest
+                    docker push ${REGISTRY}/frontend:latest
                 '''
             }
         }
@@ -93,22 +97,23 @@ pipeline {
             steps {
                 sh '''
                     echo "Deploying to AWS ${DEPLOY_ENV}..."
-                    ./scripts/deploy-aws.sh ${DEPLOY_ENV} ${IMAGE_TAG}
+                    sh scripts/deploy-aws.sh ${DEPLOY_ENV} ${IMAGE_TAG}
                 '''
             }
         }
 
-        stage('Deploy to Azure') {
-            when {
-                expression { params.DEPLOY_TO_AZURE }
-            }
-            steps {
-                sh '''
-                    echo "Deploying to Azure ${DEPLOY_ENV}..."
-                    ./scripts/deploy-azure.sh ${DEPLOY_ENV} ${IMAGE_TAG}
-                '''
-            }
-        }
+        // Enable this stage when Azure deployment is required.
+        // stage('Deploy to Azure') {
+        //     when {
+        //         expression { params.DEPLOY_TO_AZURE }
+        //     }
+        //     steps {
+        //         sh '''
+        //             echo "Deploying to Azure ${DEPLOY_ENV}..."
+        //             ./scripts/deploy-azure.sh ${DEPLOY_ENV} ${IMAGE_TAG}
+        //         '''
+        //     }
+        // }
 
         stage('Smoke Tests') {
             steps {
