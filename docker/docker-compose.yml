@@ -1,4 +1,3 @@
-```yaml
 services:
   # Backend API
   backend:
@@ -85,4 +84,3 @@ volumes:
 networks:
   ecommerce-network:
     driver: bridge
-```
