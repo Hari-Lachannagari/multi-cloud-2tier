@@ -18,7 +18,7 @@ export default function ProductCard({ product, onAddToCart, onLike }) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow p-4 h-full flex flex-col">
+    <div className="bg-white rounded-xl shadow-card hover:shadow-card-hover hover:-translate-y-1 transition-all duration-200 p-4 h-full flex flex-col">
       {/* Product Image */}
       <div className="relative h-48 bg-gray-200 rounded-lg overflow-hidden mb-4">
         <img
