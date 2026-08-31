@@ -33,7 +33,7 @@ export const productAPI = {
   getByCategory: (category) => apiClient.get(`/products/category/${category}`),
   
   // Search products
-  search: (query) => apiClient.get('/search', { params: { q: query } }),
+  search: (query) => apiClient.get('/products/search', { params: { q: query } }),
   
   // Get available products
   getAvailable: () => apiClient.get('/products/stock/available'),
