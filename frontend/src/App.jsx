@@ -1,48 +1,42 @@
-```javascript
 /**
- * API Service - Backend API communication
+ * App.js - Main React application component
  */
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Header from './components/Header';
+import HomePage from './pages/HomePage';
+import CartPage from './pages/CartPage';
+import { categoryAPI } from './services/api';
 
-import axios from 'axios';
+function App() {
+  const [categories, setCategories] = useState([]);
 
-// Use the same-origin /api path.
-// Nginx proxies /api requests to the backend container.
-const API_BASE_URL = '/api';
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await categoryAPI.getAll();
+        setCategories(res.data.categories);
+      } catch (err) {
+        console.error('Error fetching categories:', err);
+      }
+    };
 
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+    fetchCategories();
+  }, []);
 
-// Product APIs
-export const productAPI = {
-  getAll: () => apiClient.get('/products'),
+  return (
+    <Router>
+      <div className="App">
+        <Header categories={categories} />
 
-  getById: (id) => apiClient.get(`/products/${id}`),
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/cart" element={<CartPage />} />
+          <Route path="/category/:category" element={<HomePage />} />
+        </Routes>
+      </div>
+    </Router>
+  );
+}
 
-  getByCategory: (category) =>
-    apiClient.get(`/products/category/${category}`),
-
-  search: (query) =>
-    apiClient.get('/products/search', {
-      params: { q: query },
-    }),
-
-  getAvailable: () =>
-    apiClient.get('/products/stock/available'),
-
-  getHighRated: (minRating = 4.0) =>
-    apiClient.get('/products/rating/high', {
-      params: { min_rating: minRating },
-    }),
-};
-
-// Category APIs
-export const categoryAPI = {
-  getAll: () => apiClient.get('/categories'),
-};
-
-export default apiClient;
-```
+export default App;
